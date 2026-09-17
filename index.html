@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rompecabezas Deslizante - Zona Gamer</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#241a38">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-1:#241a38;
+    --bg-2:#3a2a5c;
+    --frame:#8ed7e6;
+    --frame-dark:#5fb8ca;
+    --tile-back:#f6b93b;
+    --accent:#ff6a3d;
+    --accent-dark:#e0501f;
+    --ink:#2a1b3d;
+    --paper:#fff6e6;
+    --muted:#c9b8e8;
+    --success:#3ddc84;
+    --shadow: rgba(20,10,40,0.45);
+  }
+  :root:not([data-theme="light"]){
+    /* dark is default look already */
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg-1:#e8e0f5;
+      --bg-2:#d6c8ef;
+      --ink:#2a1b3d;
+      --muted:#6b5a92;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg-1:#241a38;
+    --bg-2:#3a2a5c;
+    --ink:#2a1b3d;
+    --muted:#c9b8e8;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    padding:0;
+    min-height:100%;
+    background:
+      radial-gradient(circle at 20% 15%, var(--bg-2), transparent 55%),
+      radial-gradient(circle at 85% 80%, #4a2f5c, transparent 50%),
+      var(--bg-1);
+    background-attachment:fixed;
+    font-family:'Nunito Sans', system-ui, sans-serif;
+    color:var(--paper);
+    overflow-x:hidden;
+  }
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 16px 40px;
+    min-height:100vh;
+  }
+  .eyebrow{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--frame);
+    letter-spacing:0.02em;
+    margin-bottom:4px;
+  }
+  h1{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+    font-size:clamp(28px,6vw,38px);
+    margin:0 0 6px;
+    text-align:center;
+    color:var(--paper);
+    line-height:1.05;
+  }
+  .sub{
+    font-size:15px;
+    color:var(--muted);
+    text-align:center;
+    max-width:420px;
+    margin:0 0 22px;
+    line-height:1.45;
+  }
+
+  .stage{
+    position:relative;
+  }
+
+  .frame{
+    position:relative;
+    background: linear-gradient(155deg, var(--frame) 0%, var(--frame-dark) 100%);
+    border-radius:26px;
+    padding:14px;
+    box-shadow: 0 18px 40px var(--shadow), inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -6px 14px rgba(0,0,0,0.15);
+  }
+
+  .board{
+    position:relative;
+    width:min(84vw, 420px);
+    height:min(84vw, 420px);
+    background:var(--tile-back);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow: inset 0 0 0 3px rgba(0,0,0,0.08);
+  }
+
+  .tile{
+    position:absolute;
+    border-radius:9px;
+    background-repeat:no-repeat;
+    cursor:pointer;
+    box-shadow:
+      0 3px 0 rgba(0,0,0,0.25),
+      inset 0 0 0 2px rgba(255,255,255,0.35);
+    transition: transform 0.16s cubic-bezier(.4,1.4,.6,1);
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tile:active{ filter:brightness(0.92); }
+  .tile.hint{
+    animation: nudge 0.5s ease;
+  }
+  @keyframes nudge{
+    0%,100%{ filter:brightness(1); }
+    50%{ filter:brightness(1.18); }
+  }
+
+  .empty-slot{
+    position:absolute;
+    border-radius:9px;
+    background:repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0 8px, rgba(0,0,0,0.1) 8px 16px);
+  }
+
+  .hud{
+    display:flex;
+    gap:22px;
+    margin-top:18px;
+    font-family:'Baloo 2', sans-serif;
+  }
+  .hud-item{
+    text-align:center;
+  }
+  .hud-num{
+    font-size:22px;
+    font-weight:700;
+    color:var(--paper);
+    line-height:1;
+  }
+  .hud-label{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:3px;
+  }
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:center;
+    margin-top:20px;
+    max-width:420px;
+  }
+  button{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    border:none;
+    border-radius:999px;
+    padding:12px 20px;
+    cursor:pointer;
+    transition: transform 0.1s ease, filter 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:active{ transform:scale(0.96); }
+
+  .btn-primary{
+    background: linear-gradient(155deg, var(--accent), var(--accent-dark));
+    color:#fff6e6;
+    box-shadow: 0 6px 0 var(--accent-dark), 0 10px 18px rgba(224,80,31,0.35);
+  }
+  .btn-primary:active{ box-shadow: 0 3px 0 var(--accent-dark); }
+
+  .btn-secondary{
+    background: rgba(255,255,255,0.1);
+    color:var(--paper);
+    border: 2px solid rgba(255,255,255,0.25);
+  }
+  .btn-secondary:hover{ background: rgba(255,255,255,0.16); }
+
+  input[type=file]{ display:none; }
+
+  .preview-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(20,10,32,0.9);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    z-index:50;
+  }
+  .preview-overlay.show{ display:flex; }
+  .preview-overlay img{
+    max-width:100%;
+    max-height:85vh;
+    border-radius:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+  }
+  .preview-close{
+    position:absolute;
+    top:18px;
+    right:18px;
+    background:rgba(255,255,255,0.14);
+    color:var(--paper);
+    border:2px solid rgba(255,255,255,0.3);
+    border-radius:999px;
+    width:40px;
+    height:40px;
+    font-size:18px;
+    font-family:'Baloo 2', sans-serif;
+    cursor:pointer;
+  }
+
+  .status-line{
+    min-height:20px;
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    color:var(--success);
+    margin-top:16px;
+    text-align:center;
+    opacity:0;
+    transition: opacity 0.3s ease;
+  }
+  .status-line.show{ opacity:1; }
+
+  #playAgainBtn{ display:none; }
+
+  .confetti-layer{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:60;
+    overflow:hidden;
+  }
+  .confetto{
+    position:absolute;
+    top:-16px;
+    width:8px;
+    height:14px;
+    border-radius:2px;
+    animation: confetti-fall linear forwards;
+  }
+  @keyframes confetti-fall{
+    0%{ transform: translateY(0) rotate(0deg); opacity:1; }
+    100%{ transform: translateY(110vh) rotate(540deg); opacity:0.9; }
+  }
+
+  footer{
+    margin-top:26px;
+    font-size:12px;
+    color:var(--muted);
+    text-align:center;
+    max-width:380px;
+    line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">Foto en piezas</div>
+  <h1>Arma tu rompecabezas</h1>
+  <p class="sub">Elige una foto de tu galería y desordénala. Desliza las piezas hacia el espacio vacío hasta reconstruir la imagen.</p>
+
+  <div class="stage">
+    <div class="frame">
+      <div class="board" id="board"></div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-item">
+      <div class="hud-num" id="movesNum">0</div>
+      <div class="hud-label">movimientos</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-num" id="timeNum">0:00</div>
+      <div class="hud-label">tiempo</div>
+    </div>
+  </div>
+
+  <div class="status-line" id="statusLine"></div>
+
+  <div class="controls">
+    <button class="btn-primary" id="chooseBtn" type="button">Elegir foto</button>
+    <button class="btn-secondary" id="shuffleBtn" type="button">Mezclar</button>
+    <button class="btn-secondary" id="previewBtn" type="button">Ver imagen completa</button>
+    <button class="btn-primary" id="playAgainBtn" type="button">Jugar otra vez</button>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="preview-overlay" id="previewOverlay">
+    <button class="preview-close" id="previewCloseBtn" type="button">✕</button>
+    <img id="previewImg" src="" alt="Imagen completa del rompecabezas">
+  </div>
+
+  <footer>Funciona con cualquier foto de tu dispositivo. La imagen se procesa en tu navegador y no se sube a ningún servidor.</footer>
+
+<script>
+(function(){
+  const SIZE = 4; // 4x4 grid = 15 tiles + 1 empty, como el rompecabezas físico
+  const TOTAL = SIZE*SIZE;
+
+  const board = document.getElementById('board');
+  const statusLine = document.getElementById('statusLine');
+  const movesNum = document.getElementById('movesNum');
+  const timeNum = document.getElementById('timeNum');
+  const chooseBtn = document.getElementById('chooseBtn');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const previewBtn = document.getElementById('previewBtn');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+  const fileInput = document.getElementById('fileInput');
+
+  let boardPx = 0;   // rendered board size in px
+  let tileSize = 0;
+  let imageDataUrl = null;
+  let tiles = [];    // DOM elements indexed by tile id (0..TOTAL-2)
+  let positions = []; // positions[cellIndex] = tileId or -1 for empty
+  let emptyCell = TOTAL-1;
+  let moves = 0;
+  let timerStarted = false;
+  let startTime = 0;
+  let timerInterval = null;
+  let won = false;
+
+  function cellRowCol(cellIndex){
+    return [Math.floor(cellIndex/SIZE), cellIndex%SIZE];
+  }
+
+  function setTileTransform(el, cellIndex){
+    const [r,c] = cellRowCol(cellIndex);
+    el.style.transform = `translate(${c*tileSize}px, ${r*tileSize}px)`;
+  }
+
+  function layoutSizes(){
+    boardPx = board.clientWidth;
+    tileSize = boardPx / SIZE;
+    const gap = 2;
+    tiles.forEach(el=>{
+      el.style.width = (tileSize-gap)+'px';
+      el.style.height = (tileSize-gap)+'px';
+      el.style.backgroundSize = (tileSize*SIZE)+'px '+(tileSize*SIZE)+'px';
+    });
+    positions.forEach((tileId, cellIndex)=>{
+      if(tileId>=0) setTileTransform(tiles[tileId], cellIndex);
+    });
+  }
+
+  function defaultImage(){
+    // Generamos una imagen colorida por defecto con canvas, para que el juego
+    // funcione antes de que el usuario elija su propia foto.
+    const c = document.createElement('canvas');
+    c.width = 640; c.height = 640;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0,0,640,640);
+    grad.addColorStop(0,'#ff8a5c');
+    grad.addColorStop(0.5,'#ffb84d');
+    grad.addColorStop(1,'#ffd76a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,640,640);
+
+    ctx.fillStyle = 'rgba(61,31,61,0.9)';
+    ctx.beginPath(); ctx.ellipse(320,380,170,150,0,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = '#fff6e6';
+    ctx.beginPath(); ctx.ellipse(320,330,120,110,0,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = 'rgba(61,31,61,0.9)';
+    ctx.beginPath(); ctx.ellipse(215,240,55,90,-0.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(425,240,55,90,0.5,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = '#2a1b3d';
+    ctx.beginPath(); ctx.arc(320,340,14,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(275,300,20,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(365,300,20,0,Math.PI*2); ctx.fill();
+
+    return c.toDataURL('image/jpeg',0.92);
+  }
+
+  function cropToSquareDataUrl(img){
+    const s = Math.min(img.width, img.height);
+    const sx = (img.width - s)/2;
+    const sy = (img.height - s)/2;
+    const out = 800;
+    const c = document.createElement('canvas');
+    c.width = out; c.height = out;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, sx, sy, s, s, 0, 0, out, out);
+    return c.toDataURL('image/jpeg', 0.9);
+  }
+
+  function buildBoard(){
+    board.querySelectorAll('.tile, .empty-slot').forEach(el=>el.remove());
+    tiles = [];
+    positions = [];
+
+    for(let i=0;i<TOTAL-1;i++){
+      const el = document.createElement('div');
+      el.className = 'tile';
+      el.dataset.id = i;
+      const [r,c] = cellRowCol(i);
+      el.style.backgroundImage = `url(${imageDataUrl})`;
+      el.style.backgroundPosition = `-${c*100/(SIZE-1)*(SIZE-1)}px -0px`; // placeholder, fixed below in layout
+      el.addEventListener('click', ()=>onTileClick(i));
+      board.appendChild(el);
+      tiles.push(el);
+      positions.push(i);
+    }
+    positions.push(-1); // empty at last cell
+    emptyCell = TOTAL-1;
+
+    layoutSizes();
+    applyBackgroundPositions();
+  }
+
+  function applyBackgroundPositions(){
+    for(let id=0; id<tiles.length; id++){
+      const [r,c] = cellRowCol(id);
+      tiles[id].style.backgroundPosition = `-${c*tileSize}px -${r*tileSize}px`;
+    }
+  }
+
+  function onTileClick(tileId){
+    if(won) return;
+    const cellIndex = positions.indexOf(tileId);
+    if(!isAdjacent(cellIndex, emptyCell)) return;
+
+    positions[emptyCell] = tileId;
+    positions[cellIndex] = -1;
+    setTileTransform(tiles[tileId], emptyCell);
+    emptyCell = cellIndex;
+
+    if(!timerStarted) startTimer();
+    moves++;
+    movesNum.textContent = moves;
+
+    checkWin();
+  }
+
+  function isAdjacent(a,b){
+    const [ra,ca] = cellRowCol(a);
+    const [rb,cb] = cellRowCol(b);
+    return (Math.abs(ra-rb)+Math.abs(ca-cb)) === 1;
+  }
+
+  function neighbors(cellIndex){
+    const [r,c] = cellRowCol(cellIndex);
+    const out = [];
+    if(r>0) out.push(cellIndex-SIZE);
+    if(r<SIZE-1) out.push(cellIndex+SIZE);
+    if(c>0) out.push(cellIndex-1);
+    if(c<SIZE-1) out.push(cellIndex+1);
+    return out;
+  }
+
+  function shuffle(){
+    won = false;
+    statusLine.classList.remove('show');
+    playAgainBtn.style.display = 'none';
+    moves = 0;
+    movesNum.textContent = 0;
+    stopTimer();
+    timeNum.textContent = '0:00';
+    timerStarted = false;
+
+    // reset solved
+    for(let i=0;i<TOTAL-1;i++) positions[i]=i;
+    positions[TOTAL-1] = -1;
+    emptyCell = TOTAL-1;
+
+    let lastMoved = -1;
+    const steps = 140 + Math.floor(Math.random()*60);
+    for(let s=0;s<steps;s++){
+      const opts = neighbors(emptyCell).filter(n=>n!==lastMoved);
+      const pick = opts[Math.floor(Math.random()*opts.length)];
+      positions[emptyCell] = positions[pick];
+      positions[pick] = -1;
+      lastMoved = emptyCell;
+      emptyCell = pick;
+    }
+
+    positions.forEach((tileId, cellIndex)=>{
+      if(tileId>=0) setTileTransform(tiles[tileId], cellIndex);
+    });
+  }
+
+  function checkWin(){
+    for(let i=0;i<TOTAL-1;i++){
+      if(positions[i]!==i) return;
+    }
+    won = true;
+    stopTimer();
+    const secs = Math.floor((Date.now()-startTime)/1000);
+    statusLine.textContent = `¡Lo lograste! ${moves} movimientos · ${formatTime(secs)}`;
+    statusLine.classList.add('show');
+    playAgainBtn.style.display = 'inline-block';
+    launchConfetti();
+  }
+
+  function launchConfetti(){
+    const layer = document.createElement('div');
+    layer.className = 'confetti-layer';
+    document.body.appendChild(layer);
+    const colors = ['#ff6a3d','#f6b93b','#8ed7e6','#3ddc84','#fff6e6'];
+    const count = 28;
+    for(let i=0;i<count;i++){
+      const piece = document.createElement('div');
+      piece.className = 'confetto';
+      piece.style.left = (Math.random()*100)+'vw';
+      piece.style.background = colors[Math.floor(Math.random()*colors.length)];
+      const duration = 1.6 + Math.random()*1.2;
+      const delay = Math.random()*0.4;
+      piece.style.animationDuration = duration+'s';
+      piece.style.animationDelay = delay+'s';
+      piece.style.transform = `rotate(${Math.random()*360}deg)`;
+      layer.appendChild(piece);
+    }
+    setTimeout(()=> layer.remove(), 3200);
+  }
+
+  function startTimer(){
+    timerStarted = true;
+    startTime = Date.now();
+    timerInterval = setInterval(()=>{
+      const secs = Math.floor((Date.now()-startTime)/1000);
+      timeNum.textContent = formatTime(secs);
+    }, 500);
+  }
+  function stopTimer(){
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  function formatTime(secs){
+    const m = Math.floor(secs/60);
+    const s = secs%60;
+    return `${m}:${s.toString().padStart(2,'0')}`;
+  }
+
+  function loadImageAndStart(dataUrl){
+    const img = new Image();
+    img.onload = ()=>{
+      imageDataUrl = cropToSquareDataUrl(img);
+      buildBoard();
+      shuffle();
+    };
+    img.src = dataUrl;
+  }
+
+  chooseBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=> loadImageAndStart(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  shuffleBtn.addEventListener('click', shuffle);
+  playAgainBtn.addEventListener('click', shuffle);
+
+  const previewOverlay = document.getElementById('previewOverlay');
+  const previewImg = document.getElementById('previewImg');
+  const previewCloseBtn = document.getElementById('previewCloseBtn');
+
+  previewBtn.addEventListener('click', ()=>{
+    if(!imageDataUrl) return;
+    previewImg.src = imageDataUrl;
+    previewOverlay.classList.add('show');
+  });
+  previewCloseBtn.addEventListener('click', ()=> previewOverlay.classList.remove('show'));
+  previewOverlay.addEventListener('click', (e)=>{
+    if(e.target === previewOverlay) previewOverlay.classList.remove('show');
+  });
+
+  window.addEventListener('resize', ()=>{
+    layoutSizes();
+  });
+
+  // arranque inicial con imagen de ejemplo generada
+  loadImageAndStart(defaultImage());
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
