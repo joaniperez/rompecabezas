@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.industriacreativacolombiana.rompecabezas.twa",
+        "sha256_cert_fingerprints": ["84:D8:FB:D2:55:CD:FB:58:AA:B4:BE:B9:0B:51:4D:D0:0B:FF:44:F1:C9:16:FA:AB:32:37:77:A7:D8:F2:3C:C0"]
+      }
+    }]
